@@ -6,7 +6,7 @@
 {.experimental: "strict_funcs".}
 
 import std/[strutils, hashes]
-import lattice
+import basis/code/choice
 
 # =====================================================================================================================
 # Types
@@ -61,7 +61,7 @@ proc var_name*(v: SmtVar): string =
 
 proc encode_model*(principals, actions, resources: seq[string],
                    policies: seq[(string, PolicyEffect, seq[SmtVar])]
-                  ): Result[SmtEncoding, SatisPortaError] =
+                  ): Choice[SmtEncoding] =
   ## Encode an authorization model into SMT representation.
   ## Each (principal, action, resource) triple becomes a boolean variable.
   ## Each policy constrains which variables are true/false.
@@ -73,7 +73,7 @@ proc encode_model*(principals, actions, resources: seq[string],
   var encoded_policies: seq[EncodedPolicy]
   for (name, effect, pvars) in policies:
     encoded_policies.add(EncodedPolicy(name: name, effect: effect, vars: pvars))
-  Result[SmtEncoding, SatisPortaError].good(
+  good(
     SmtEncoding(variables: vars, policies: encoded_policies,
                 principals: principals, actions: actions, resources: resources))
 

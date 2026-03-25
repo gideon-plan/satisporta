@@ -6,7 +6,11 @@
 {.experimental: "strict_funcs".}
 
 import std/[sets, tables, hashes]
-import lattice
+
+type
+  SatisPortaError* = object of CatchableError
+
+import basis/code/choice
 
 # =====================================================================================================================
 # Types
@@ -49,7 +53,7 @@ proc transitive_groups*(principal: string, memberships: seq[Membership]): HashSe
 
 proc reachable_permissions*(principal: string, memberships: seq[Membership],
                             role_permissions: Table[string, seq[Permission]]
-                           ): Result[HashSet[Permission], SatisPortaError] =
+                           ): Choice[HashSet[Permission]] =
   ## Enumerate all permissions reachable by principal through transitive group membership.
   let groups = transitive_groups(principal, memberships)
   var perms: HashSet[Permission]
@@ -57,18 +61,18 @@ proc reachable_permissions*(principal: string, memberships: seq[Membership],
     if g in role_permissions:
       for p in role_permissions[g]:
         perms.incl(p)
-  Result[HashSet[Permission], SatisPortaError].good(perms)
+  good(perms)
 
 proc compare_permissions*(principal_a, principal_b: string,
                           memberships: seq[Membership],
                           role_permissions: Table[string, seq[Permission]]
-                         ): Result[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]], SatisPortaError] =
+                         ): Choice[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]]] =
   ## Compare permissions between two principals.
   let perms_a = reachable_permissions(principal_a, memberships, role_permissions)
-  if perms_a.is_bad: return Result[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]], SatisPortaError].bad(perms_a.err)
+  if perms_a.is_bad: return bad[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]]](perms_a.err)
   let perms_b = reachable_permissions(principal_b, memberships, role_permissions)
-  if perms_b.is_bad: return Result[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]], SatisPortaError].bad(perms_b.err)
+  if perms_b.is_bad: return bad[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]]](perms_b.err)
   let shared = perms_a.val * perms_b.val
   let only_a = perms_a.val - perms_b.val
   let only_b = perms_b.val - perms_a.val
-  Result[tuple[only_a: HashSet[Permission], only_b: HashSet[Permission], shared: HashSet[Permission]], SatisPortaError].good((only_a: only_a, only_b: only_b, shared: shared))
+  good((only_a: only_a, only_b: only_b, shared: shared))

@@ -2,5 +2,5 @@
 
 {.experimental: "strict_funcs".}
 
-import satisporta/[encode, verify, counterexample, reachability, lattice]
-export encode, verify, counterexample, reachability, lattice
+import satisporta/[encode, verify, counterexample, reachability]
+export encode, verify, counterexample, reachability
