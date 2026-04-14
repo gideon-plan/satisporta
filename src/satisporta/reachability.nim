@@ -38,7 +38,7 @@ func `==`*(a, b: Permission): bool =
 # Transitive closure
 # =====================================================================================================================
 
-proc transitive_groups*(principal: string, memberships: seq[Membership]): HashSet[string] =
+proc transitive_groups_set*(principal: string, memberships: seq[Membership]): HashSet[string] =
   ## Compute all groups/roles transitively reachable from principal.
   result.incl(principal)
   var frontier = @[principal]
@@ -51,11 +51,18 @@ proc transitive_groups*(principal: string, memberships: seq[Membership]): HashSe
           next_frontier.add(m.group)
     frontier = next_frontier
 
+proc transitive_groups*(principal: string, memberships: seq[Membership]): seq[string] =
+  ## Seq-returning variant of transitive_groups_set for typed foreign bindings.
+  let s = transitive_groups_set(principal, memberships)
+  result = newSeqOfCap[string](s.len)
+  for g in s:
+    result.add(g)
+
 proc reachable_permissions*(principal: string, memberships: seq[Membership],
                             role_permissions: Table[string, seq[Permission]]
                            ): Choice[HashSet[Permission]] =
   ## Enumerate all permissions reachable by principal through transitive group membership.
-  let groups = transitive_groups(principal, memberships)
+  let groups = transitive_groups_set(principal, memberships)
   var perms: HashSet[Permission]
   for g in groups:
     if g in role_permissions:
