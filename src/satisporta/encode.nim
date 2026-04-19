@@ -19,9 +19,9 @@ type
     action*: string
     resource*: string
 
-  PolicyEffect* = enum
-    pePermit
-    peDeny
+  PolicyEffect* {.pure.} = enum
+    Permit
+    Deny
 
   EncodedPolicy* = object
     ## A single policy translated to SMT constraint.
@@ -89,9 +89,9 @@ proc to_smtlib*(encoding: SmtEncoding): string =
     for v in pol.vars:
       let vn = var_name(v)
       case pol.effect
-      of pePermit:
+      of PolicyEffect.Permit:
         lines.add("(assert " & vn & ")  ; " & pol.name & " permits")
-      of peDeny:
+      of PolicyEffect.Deny:
         lines.add("(assert (not " & vn & "))  ; " & pol.name & " denies")
   lines.add("(check-sat)")
   lines.add("(get-model)")

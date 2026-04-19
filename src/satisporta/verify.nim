@@ -12,10 +12,10 @@ import basis/code/choice, encode
 # =====================================================================================================================
 
 type
-  VerifyResult* = enum
-    vrSatisfied    ## Property holds
-    vrViolated     ## Property violated
-    vrUnknown      ## Solver could not determine
+  VerifyResult* {.pure.} = enum
+    Satisfied    ## Property holds
+    Violated     ## Property violated
+    Unknown      ## Solver could not determine
 
   PropertyCheck* = object
     property*: string
@@ -33,19 +33,19 @@ proc check_conflicts*(encoding: SmtEncoding): Choice[PropertyCheck] =
   for pol in encoding.policies:
     for v in pol.vars:
       case pol.effect
-      of pePermit: permit_set.incl(v)
-      of peDeny: deny_set.incl(v)
+      of PolicyEffect.Permit: permit_set.incl(v)
+      of PolicyEffect.Deny: deny_set.incl(v)
   let conflicts = permit_set * deny_set  # intersection
   if conflicts.len > 0:
     var details: seq[string]
     for c in conflicts:
       details.add(c.principal & ":" & c.action & ":" & c.resource)
     good(
-      PropertyCheck(property: "conflict-free", result_code: vrViolated,
+      PropertyCheck(property: "conflict-free", result_code: VerifyResult.Violated,
                     details: "Conflicting policies on: " & details.join(", ")))
   else:
     good(
-      PropertyCheck(property: "conflict-free", result_code: vrSatisfied, details: ""))
+      PropertyCheck(property: "conflict-free", result_code: VerifyResult.Satisfied, details: ""))
 
 # =====================================================================================================================
 # Coverage check
@@ -63,11 +63,11 @@ proc check_coverage*(encoding: SmtEncoding): Choice[PropertyCheck] =
       uncovered.add(v.principal & ":" & v.action & ":" & v.resource)
   if uncovered.len > 0:
     good(
-      PropertyCheck(property: "complete-coverage", result_code: vrViolated,
+      PropertyCheck(property: "complete-coverage", result_code: VerifyResult.Violated,
                     details: "Uncovered: " & uncovered.join(", ")))
   else:
     good(
-      PropertyCheck(property: "complete-coverage", result_code: vrSatisfied, details: ""))
+      PropertyCheck(property: "complete-coverage", result_code: VerifyResult.Satisfied, details: ""))
 
 # =====================================================================================================================
 # Least privilege check
@@ -78,12 +78,12 @@ proc check_least_privilege*(encoding: SmtEncoding, principal: string
   ## List all permissions granted to a principal.
   var permitted: seq[string]
   for pol in encoding.policies:
-    if pol.effect == pePermit:
+    if pol.effect == PolicyEffect.Permit:
       for v in pol.vars:
         if v.principal == principal:
           permitted.add(v.action & ":" & v.resource)
   good(
-    PropertyCheck(property: "least-privilege", result_code: vrSatisfied,
+    PropertyCheck(property: "least-privilege", result_code: VerifyResult.Satisfied,
                   details: "Permissions for " & principal & ": " & permitted.join(", ")))
 
 # =====================================================================================================================

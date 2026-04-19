@@ -13,7 +13,7 @@ suite "encode":
   test "encode_model creates variables":
     let result = encode_model(
       @["alice", "bob"], @["read", "write"], @["file1"],
-      @[("allow_alice_read", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
+      @[("allow_alice_read", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
     check result.is_good
     check result.val.variables.len == 4  # 2 principals * 2 actions * 1 resource
     check result.val.policies.len == 1
@@ -25,7 +25,7 @@ suite "encode":
   test "to_smtlib generates valid output":
     let model = encode_model(
       @["alice"], @["read"], @["file1"],
-      @[("p1", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
+      @[("p1", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
     check model.is_good
     let smt = to_smtlib(model.val)
     check smt.contains("declare-const")
@@ -40,45 +40,45 @@ suite "verify":
   test "no conflicts when policies are disjoint":
     let model = encode_model(
       @["alice", "bob"], @["read"], @["file1"],
-      @[("p1", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")]),
-        ("p2", peDeny, @[SmtVar(principal: "bob", action: "read", resource: "file1")])])
+      @[("p1", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")]),
+        ("p2", PolicyEffect.Deny, @[SmtVar(principal: "bob", action: "read", resource: "file1")])])
     check model.is_good
     let result = check_conflicts(model.val)
     check result.is_good
-    check result.val.result_code == vrSatisfied
+    check result.val.result_code == VerifyResult.Satisfied
 
   test "detect conflict when same triple permitted and denied":
     let v = SmtVar(principal: "alice", action: "read", resource: "file1")
     let model = encode_model(
       @["alice"], @["read"], @["file1"],
-      @[("p1", pePermit, @[v]), ("p2", peDeny, @[v])])
+      @[("p1", PolicyEffect.Permit, @[v]), ("p2", PolicyEffect.Deny, @[v])])
     check model.is_good
     let result = check_conflicts(model.val)
     check result.is_good
-    check result.val.result_code == vrViolated
+    check result.val.result_code == VerifyResult.Violated
 
   test "coverage check detects uncovered triples":
     let model = encode_model(
       @["alice", "bob"], @["read"], @["file1"],
-      @[("p1", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
+      @[("p1", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
     check model.is_good
     let result = check_coverage(model.val)
     check result.is_good
-    check result.val.result_code == vrViolated  # bob:read:file1 uncovered
+    check result.val.result_code == VerifyResult.Violated  # bob:read:file1 uncovered
 
   test "full coverage passes":
     let model = encode_model(
       @["alice"], @["read"], @["file1"],
-      @[("p1", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
+      @[("p1", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
     check model.is_good
     let result = check_coverage(model.val)
     check result.is_good
-    check result.val.result_code == vrSatisfied
+    check result.val.result_code == VerifyResult.Satisfied
 
   test "verify_all returns all checks":
     let model = encode_model(
       @["alice"], @["read"], @["file1"],
-      @[("p1", pePermit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
+      @[("p1", PolicyEffect.Permit, @[SmtVar(principal: "alice", action: "read", resource: "file1")])])
     check model.is_good
     let result = verify_all(model.val)
     check result.is_good
@@ -90,7 +90,7 @@ suite "verify":
 
 suite "counterexample":
   test "extract from violated check":
-    let checks = @[PropertyCheck(property: "conflict-free", result_code: vrViolated,
+    let checks = @[PropertyCheck(property: "conflict-free", result_code: VerifyResult.Violated,
                                  details: "Conflicting policies on: alice:read:file1")]
     let model = encode_model(@["alice"], @["read"], @["file1"], @[])
     check model.is_good
@@ -100,7 +100,7 @@ suite "counterexample":
     check ces[0].violations[0].principal == "alice"
 
   test "no counterexamples when satisfied":
-    let checks = @[PropertyCheck(property: "conflict-free", result_code: vrSatisfied, details: "")]
+    let checks = @[PropertyCheck(property: "conflict-free", result_code: VerifyResult.Satisfied, details: "")]
     let model = encode_model(@["alice"], @["read"], @["file1"], @[])
     check model.is_good
     let ces = extract_counterexamples(checks, model.val)

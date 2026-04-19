@@ -24,7 +24,7 @@ proc extract_counterexamples*(checks: seq[PropertyCheck],
                              ): seq[Counterexample] =
   ## Extract counterexamples from violated property checks.
   for check in checks:
-    if check.result_code == vrViolated:
+    if check.result_code == VerifyResult.Violated:
       var ce = Counterexample(property: check.property, description: check.details)
       # Parse violated variable names from details
       if check.details.contains(":"):
